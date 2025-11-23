@@ -130,7 +130,8 @@ xbps-install.static -y -S -R "$REPO" -r /mnt \
     linux-firmware \
     grub \
     vim \
-    dhcpcd
+    dhcpcd \
+    sudo
 
 echo ""
 echo "Step 8: Configuring system..."
@@ -149,10 +150,19 @@ cat > /mnt/etc/hosts <<EOF
 127.0.1.1 voidlinux-qemu.localdomain voidlinux-qemu
 EOF
 
-# Set root password
-echo "root:root" | chroot /mnt chpasswd
-echo "Root password set to: root"
-echo "CHANGE THIS AFTER FIRST LOGIN!"
+# Create manager user
+chroot /mnt useradd -m -G wheel manager
+echo "manager:password" | chroot /mnt chpasswd
+echo "Manager user created with password: password"
+
+# Configure sudoers for wheel group
+mkdir -p /mnt/etc/sudoers.d
+echo "%wheel ALL=(ALL:ALL) ALL" > /mnt/etc/sudoers.d/wheel
+chmod 440 /mnt/etc/sudoers.d/wheel
+
+# Disable root login
+chroot /mnt passwd -l root
+echo "Root login disabled"
 
 # Configure fstab
 echo "Generating fstab..."
@@ -205,11 +215,13 @@ echo "Installation Complete!"
 echo "============================================"
 echo ""
 echo "IMPORTANT:"
-echo "1. Root password is set to: root"
-echo "2. Change it immediately after first login!"
+echo "1. User: manager"
+echo "2. Password: password"
 echo "3. Hostname: voidlinux-qemu"
 echo "4. Networking: dhcpcd is enabled"
 echo "5. Init system: runit"
+echo "6. Root login is DISABLED"
+echo "7. Manager user has sudo access"
 echo ""
 echo "Unmounting filesystems..."
 umount /mnt/dev
@@ -223,8 +235,8 @@ echo "You can now shut down the VM and boot from disk."
 echo "Remove the Ubuntu ISO and restart the VM."
 echo ""
 echo "After booting into Void Linux:"
-echo "  - Change root password: passwd"
-echo "  - Update system: xbps-install -Su"
-echo "  - Create a user: useradd -m -G wheel username"
-echo "  - Install additional packages: xbps-install <package>"
+echo "  - Login as: manager / password"
+echo "  - Change password: passwd"
+echo "  - Update system: sudo xbps-install -Su"
+echo "  - Install additional packages: sudo xbps-install <package>"
 echo ""

@@ -130,7 +130,7 @@ pacman-key --init
 pacman-key --populate archlinux
 pacman -Sy --noconfirm archlinux-keyring
 pacman -Su --noconfirm
-pacstrap /mnt base linux linux-firmware vim dhcpcd grub
+pacstrap /mnt base linux linux-firmware vim dhcpcd grub sudo
 CHROOT_INSTALL
 
 echo ""
@@ -161,11 +161,19 @@ echo "127.0.1.1 archlinux-qemu.localdomain archlinux-qemu" >> /etc/hosts
 sed -i 's/^MODULES=.*/MODULES=(virtio virtio_blk virtio_pci virtio_net)/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
-# Set root password
-echo "root:root" | chpasswd
+# Create manager user
+useradd -m -G wheel manager
+echo "manager:password" | chpasswd
 echo ""
-echo "Root password set to: root"
-echo "CHANGE THIS AFTER FIRST LOGIN!"
+echo "Manager user created with password: password"
+
+# Configure sudoers for wheel group
+echo "%wheel ALL=(ALL:ALL) ALL" >> /etc/sudoers.d/wheel
+chmod 440 /etc/sudoers.d/wheel
+
+# Disable root login
+passwd -l root
+echo "Root login disabled"
 
 # Enable networking
 systemctl enable dhcpcd
@@ -182,10 +190,12 @@ echo "Installation Complete!"
 echo "============================================"
 echo ""
 echo "IMPORTANT:"
-echo "1. Root password is set to: root"
-echo "2. Change it immediately after first login!"
+echo "1. User: manager"
+echo "2. Password: password"
 echo "3. Hostname: archlinux-qemu"
 echo "4. Networking: dhcpcd is enabled"
+echo "5. Root login is DISABLED"
+echo "6. Manager user has sudo access"
 echo ""
 echo "Unmounting filesystems..."
 umount -R /mnt
@@ -195,7 +205,7 @@ echo "You can now shut down the VM and boot from disk."
 echo "Remove the Ubuntu ISO and restart the VM."
 echo ""
 echo "After booting into Arch Linux:"
-echo "  - Change root password: passwd"
-echo "  - Update system: pacman -Syu"
-echo "  - Create a user: useradd -m -G wheel username"
+echo "  - Login as: manager / password"
+echo "  - Change password: passwd"
+echo "  - Update system: sudo pacman -Syu"
 echo ""
