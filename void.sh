@@ -152,7 +152,7 @@ EOF
 
 # Create manager user
 chroot /mnt useradd -m -G wheel manager
-echo "manager:password" | chroot /mnt chpasswd
+printf "password\npassword\n" | passwd -R /mnt manager
 echo "Manager user created with password: password"
 
 # Configure sudoers for wheel group
