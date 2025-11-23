@@ -120,18 +120,15 @@ echo 'Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch' > root.x86_6
 
 echo ""
 echo "Step 8: Installing base system..."
-# Mount necessary filesystems for chroot
-mount --bind /mnt root.x86_64/mnt
-
-# Initialize pacman keyring and install base system
-root.x86_64/bin/arch-chroot root.x86_64 /bin/bash <<'CHROOT_INSTALL'
+# Initialize pacman keyring in bootstrap
+root.x86_64/bin/arch-chroot root.x86_64 /bin/bash <<'CHROOT_INIT'
 set -e
 pacman-key --init
 pacman-key --populate archlinux
-pacman -Sy --noconfirm archlinux-keyring
-pacman -Su --noconfirm
-pacstrap /mnt base linux linux-firmware vim dhcpcd grub sudo
-CHROOT_INSTALL
+CHROOT_INIT
+
+# Install base system using pacstrap from bootstrap
+root.x86_64/usr/bin/pacstrap /mnt base linux linux-firmware vim dhcpcd grub sudo
 
 echo ""
 echo "Step 9: Generating fstab..."
