@@ -118,17 +118,25 @@ cp /etc/resolv.conf root.x86_64/etc/resolv.conf
 # Select a mirror
 echo 'Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch' > root.x86_64/etc/pacman.d/mirrorlist
 
+# Bind-mount /mnt into bootstrap so pacstrap can access it (recursive to include /boot)
+mkdir -p root.x86_64/mnt
+mount --rbind /mnt root.x86_64/mnt
+
 echo ""
 echo "Step 8: Installing base system..."
-# Initialize pacman keyring in bootstrap
-root.x86_64/bin/arch-chroot root.x86_64 /bin/bash <<'CHROOT_INIT'
+# Initialize pacman keyring in bootstrap and install to /mnt
+root.x86_64/bin/arch-chroot root.x86_64 /bin/bash <<'CHROOT_INSTALL'
 set -e
 pacman-key --init
 pacman-key --populate archlinux
-CHROOT_INIT
+pacstrap /mnt base linux linux-firmware vim dhcpcd grub sudo
+CHROOT_INSTALL
 
-# Install base system using pacstrap from bootstrap
-root.x86_64/usr/bin/pacstrap /mnt base linux linux-firmware vim dhcpcd grub sudo
+# Unmount the bind mount (recursive)
+umount -R root.x86_64/mnt
+
+# Remount boot partition (it got unmounted with the recursive unmount)
+mount "$PART1" /mnt/boot
 
 echo ""
 echo "Step 9: Generating fstab..."
@@ -136,7 +144,7 @@ genfstab -U /mnt >> /mnt/etc/fstab
 
 echo ""
 echo "Step 10: Configuring system..."
-arch-chroot /mnt /bin/bash <<'CHROOT_CONFIG'
+arch-chroot /mnt /bin/bash <<CHROOT_CONFIG
 set -e
 
 # Set timezone
@@ -153,6 +161,9 @@ echo "archlinux-qemu" > /etc/hostname
 echo "127.0.0.1 localhost" >> /etc/hosts
 echo "::1 localhost" >> /etc/hosts
 echo "127.0.1.1 archlinux-qemu.localdomain archlinux-qemu" >> /etc/hosts
+
+# Create vconsole.conf to avoid mkinitcpio warning
+echo "KEYMAP=us" > /etc/vconsole.conf
 
 # Configure mkinitcpio with VirtIO modules
 sed -i 's/^MODULES=.*/MODULES=(virtio virtio_blk virtio_pci virtio_net)/' /etc/mkinitcpio.conf
@@ -176,7 +187,7 @@ echo "Root login disabled"
 systemctl enable dhcpcd
 
 # Install and configure GRUB
-grub-install --target=i386-pc /dev/vda
+grub-install --target=i386-pc $DISK
 grub-mkconfig -o /boot/grub/grub.cfg
 
 CHROOT_CONFIG
